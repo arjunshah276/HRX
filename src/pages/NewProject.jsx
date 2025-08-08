@@ -87,7 +87,7 @@ const NewProject = () => {
     
     // Simulate API call delay
     setTimeout(() => {
-      const cost = calculateProjectCost(selectedTemplate, formData)
+      const cost = calculateProjectEstimate(selectedTemplate, formData, user?.id)
       setEstimate(cost)
       setIsCalculating(false)
     }, 1500)
