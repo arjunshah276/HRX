@@ -254,10 +254,10 @@ const TemplateForm = ({ template, onSubmit, initialData = {} }) => {
           <p className="text-sm text-gray-600 mb-4">
             Upload photos of the area to help contractors provide accurate estimates
           </p>
-          <MultiImageUpload 
-            onUpload={setImages}
-            maxFiles={5}
-            acceptedTypes={['image/jpeg', 'image/png', 'image/webp']}
+          <MultiImageUpload
+            fieldConfig={{ id: 'images', maxFiles: 5, accept: 'image/*' }}
+            value={formData.images || []}
+            onChange={(files) => setFormData(prev => ({...prev, images: files}))}
           />
         </div>
 
