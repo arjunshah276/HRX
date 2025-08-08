@@ -1,235 +1,287 @@
-import React, { useState, useRef } from 'react'
-import { Upload, X, Image as ImageIcon, AlertCircle } from 'lucide-react'
+import React, { useState, useCallback } from 'react'
+import { X, Upload, Image as ImageIcon } from 'lucide-react'
 
-const ImageUploader = ({ 
-  onUpload, 
-  maxFiles = 5, 
-  maxSize = 5 * 1024 * 1024, // 5MB
-  acceptedTypes = ['image/jpeg', 'image/png', 'image/webp'],
-  className = ""
+const MultiImageUpload = ({ 
+  fieldConfig, 
+  value = [], 
+  onChange, 
+  error,
+  disabled = false 
 }) => {
-  const [files, setFiles] = useState([])
-  const [dragOver, setDragOver] = useState(false)
-  const [uploading, setUploading] = useState(false)
-  const [errors, setErrors] = useState([])
-  const fileInputRef = useRef(null)
+  const [dragActive, setDragActive] = useState(false)
+  const [previews, setPreviews] = useState([])
 
-  const validateFile = (file) => {
-    const errors = []
-    
-    if (file.size > maxSize) {
-      errors.push(`File size must be less than ${Math.round(maxSize / 1024 / 1024)}MB`)
-    }
-    
-    if (!acceptedTypes.includes(file.type)) {
-      errors.push(`File type not supported. Accepted types: ${acceptedTypes.join(', ')}`)
-    }
-    
-    return errors
-  }
+  const maxFiles = fieldConfig?.maxFiles || 5
 
-  const processFiles = (newFiles) => {
-    const fileArray = Array.from(newFiles)
-    const validFiles = []
-    const allErrors = []
-
-    fileArray.forEach((file) => {
-      const fileErrors = validateFile(file)
-      if (fileErrors.length === 0) {
-        validFiles.push({
-          file,
-          id: Math.random().toString(36).substr(2, 9),
-          name: file.name,
-          size: file.size,
-          type: file.type,
-          preview: URL.createObjectURL(file)
-        })
-      } else {
-        allErrors.push(`${file.name}: ${fileErrors.join(', ')}`)
-      }
+  // Create preview URLs for uploaded files
+  const createPreview = useCallback((file) => {
+    return new Promise((resolve) => {
+      const reader = new FileReader()
+      reader.onload = (e) => resolve({
+        file,
+        url: e.target.result,
+        id: Math.random().toString(36).substr(2, 9)
+      })
+      reader.readAsDataURL(file)
     })
+  }, [])
 
-    if (files.length + validFiles.length > maxFiles) {
-      allErrors.push(`Maximum ${maxFiles} files allowed`)
+  // Handle file selection (both drag and click)
+  const handleFiles = useCallback(async (files) => {
+    const fileArray = Array.from(files)
+    const currentFiles = value || []
+    
+    // Check if adding new files would exceed the limit
+    if (currentFiles.length + fileArray.length > maxFiles) {
+      alert(`Maximum ${maxFiles} images allowed. You can add ${maxFiles - currentFiles.length} more.`)
       return
     }
 
-    if (allErrors.length > 0) {
-      setErrors(allErrors)
-      setTimeout(() => setErrors([]), 5000)
-      return
+    // Filter for image files only
+    const imageFiles = fileArray.filter(file => file.type.startsWith('image/'))
+    
+    if (imageFiles.length !== fileArray.length) {
+      alert('Only image files are allowed.')
     }
 
-    const updatedFiles = [...files, ...validFiles]
-    setFiles(updatedFiles)
-    onUpload(updatedFiles.map(f => f.file))
-  }
+    if (imageFiles.length === 0) return
 
-  const removeFile = (fileId) => {
-    const updatedFiles = files.filter(f => f.id !== fileId)
-    setFiles(updatedFiles)
-    onUpload(updatedFiles.map(f => f.file))
-  }
+    try {
+      // Create previews for new files
+      const newPreviews = await Promise.all(imageFiles.map(createPreview))
+      
+      // Update the form data with all files (existing + new)
+      const updatedFiles = [...currentFiles, ...imageFiles]
+      onChange(updatedFiles)
+      
+      // Update previews state
+      setPreviews(prev => [...prev, ...newPreviews])
+    } catch (error) {
+      console.error('Error processing files:', error)
+      alert('Error processing some files. Please try again.')
+    }
+  }, [value, onChange, maxFiles, createPreview])
 
-  const handleDragOver = (e) => {
+  // Remove a specific file
+  const removeFile = useCallback((indexToRemove) => {
+    const currentFiles = value || []
+    const updatedFiles = currentFiles.filter((_, index) => index !== indexToRemove)
+    onChange(updatedFiles)
+    
+    // Update previews
+    setPreviews(prev => prev.filter((_, index) => index !== indexToRemove))
+  }, [value, onChange])
+
+  // Drag and drop handlers
+  const handleDrag = useCallback((e) => {
     e.preventDefault()
-    setDragOver(true)
-  }
+    e.stopPropagation()
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true)
+    } else if (e.type === "dragleave") {
+      setDragActive(false)
+    }
+  }, [])
 
-  const handleDragLeave = (e) => {
+  const handleDrop = useCallback((e) => {
     e.preventDefault()
-    setDragOver(false)
-  }
+    e.stopPropagation()
+    setDragActive(false)
+    
+    if (disabled) return
+    
+    const files = e.dataTransfer.files
+    if (files && files.length > 0) {
+      handleFiles(files)
+    }
+  }, [handleFiles, disabled])
 
-  const handleDrop = (e) => {
-    e.preventDefault()
-    setDragOver(false)
-    processFiles(e.dataTransfer.files)
-  }
+  // File input change handler
+  const handleInputChange = useCallback((e) => {
+    if (disabled) return
+    
+    const files = e.target.files
+    if (files && files.length > 0) {
+      handleFiles(files)
+    }
+    
+    // Reset the input value so the same file can be selected again if removed and re-added
+    e.target.value = ''
+  }, [handleFiles, disabled])
 
-  const handleFileSelect = (e) => {
-    processFiles(e.target.files)
-  }
+  // Initialize previews when component mounts or value changes
+  React.useEffect(() => {
+    const initializePreviews = async () => {
+      if (!value || value.length === 0) {
+        setPreviews([])
+        return
+      }
 
-  const formatFileSize = (bytes) => {
-    if (bytes === 0) return '0 Bytes'
-    const k = 1024
-    const sizes = ['Bytes', 'KB', 'MB', 'GB']
-    const i = Math.floor(Math.log(bytes) / Math.log(k))
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
-  }
+      const newPreviews = await Promise.all(
+        value.map(async (file, index) => {
+          if (file instanceof File) {
+            return createPreview(file)
+          } else if (typeof file === 'string') {
+            // Handle URLs (for pre-existing images)
+            return {
+              file: null,
+              url: file,
+              id: `existing-${index}`
+            }
+          }
+          return null
+        })
+      )
+
+      setPreviews(newPreviews.filter(Boolean))
+    }
+
+    initializePreviews()
+  }, [value, createPreview])
+
+  const currentCount = (value || []).length
 
   return (
-    <div className={`w-full ${className}`}>
+    <div className="space-y-4">
       {/* Upload Area */}
       <div
         className={`
-          relative border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors
-          ${dragOver ? 'border-blue-400 bg-blue-50' : 'border-gray-300 hover:border-gray-400'}
-          ${files.length >= maxFiles ? 'opacity-50 cursor-not-allowed' : ''}
+          relative border-2 border-dashed rounded-lg p-6 text-center transition-colors
+          ${dragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300'}
+          ${disabled ? 'opacity-50 cursor-not-allowed' : 'hover:border-blue-400 cursor-pointer'}
+          ${error ? 'border-red-300 bg-red-50' : ''}
         `}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
+        onDragEnter={handleDrag}
+        onDragLeave={handleDrag}
+        onDragOver={handleDrag}
         onDrop={handleDrop}
-        onClick={() => files.length < maxFiles && fileInputRef.current?.click()}
+        onClick={() => !disabled && document.getElementById(`file-input-${fieldConfig?.id}`).click()}
       >
         <input
-          ref={fileInputRef}
+          id={`file-input-${fieldConfig?.id}`}
           type="file"
           multiple
-          accept={acceptedTypes.join(',')}
-          onChange={handleFileSelect}
+          accept={fieldConfig?.accept || "image/*"}
+          onChange={handleInputChange}
           className="hidden"
-          disabled={files.length >= maxFiles}
+          disabled={disabled}
         />
-        
-        <div className="flex flex-col items-center">
-          <Upload className={`w-8 h-8 mb-2 ${dragOver ? 'text-blue-500' : 'text-gray-400'}`} />
-          <p className="text-sm font-medium text-gray-900 mb-1">
-            {dragOver ? 'Drop files here' : 'Click to upload or drag and drop'}
-          </p>
-          <p className="text-xs text-gray-500">
-            {acceptedTypes.join(', ').toUpperCase()} up to {Math.round(maxSize / 1024 / 1024)}MB each
-          </p>
-          <p className="text-xs text-gray-400 mt-1">
-            {files.length}/{maxFiles} files uploaded
-          </p>
+
+        <div className="space-y-2">
+          <Upload className="mx-auto h-12 w-12 text-gray-400" />
+          <div>
+            <p className="text-lg font-medium text-gray-900">
+              {dragActive ? 'Drop images here' : 'Upload Images'}
+            </p>
+            <p className="text-sm text-gray-500">
+              Drag and drop or click to select
+            </p>
+          </div>
+          <div className="text-xs text-gray-400">
+            {currentCount} of {maxFiles} images uploaded
+            {maxFiles - currentCount > 0 && (
+              <span className="block">
+                You can add {maxFiles - currentCount} more
+              </span>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Error Messages */}
-      {errors.length > 0 && (
-        <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md">
-          <div className="flex items-start">
-            <AlertCircle className="w-4 h-4 text-red-500 mt-0.5 mr-2 flex-shrink-0" />
-            <div className="flex-1">
-              <h4 className="text-sm font-medium text-red-800">Upload Errors:</h4>
-              <ul className="mt-1 text-sm text-red-700">
-                {errors.map((error, index) => (
-                  <li key={index} className="list-disc list-inside">
-                    {error}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        </div>
+      {/* Error Message */}
+      {error && (
+        <p className="text-sm text-red-600">{error}</p>
       )}
 
-      {/* File List */}
-      {files.length > 0 && (
-        <div className="mt-4 space-y-2">
-          <h4 className="text-sm font-medium text-gray-700">
-            Uploaded Files ({files.length})
+      {/* Image Previews */}
+      {previews.length > 0 && (
+        <div className="space-y-3">
+          <h4 className="text-sm font-medium text-gray-900">
+            Uploaded Images ({previews.length})
           </h4>
-          <div className="space-y-2">
-            {files.map((file) => (
-              <div key={file.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-md border">
-                <div className="flex items-center flex-1 min-w-0">
-                  <div className="flex-shrink-0 mr-3">
-                    {file.preview ? (
-                      <img
-                        src={file.preview}
-                        alt={file.name}
-                        className="w-10 h-10 rounded object-cover"
-                      />
-                    ) : (
-                      <div className="w-10 h-10 bg-gray-200 rounded flex items-center justify-center">
-                        <ImageIcon className="w-5 h-5 text-gray-400" />
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">
-                      {file.name}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      {formatFileSize(file.size)}
-                    </p>
-                  </div>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {previews.map((preview, index) => (
+              <div key={preview.id || index} className="relative group">
+                <div className="aspect-w-1 aspect-h-1 w-full overflow-hidden rounded-lg bg-gray-200">
+                  <img
+                    src={preview.url}
+                    alt={`Upload ${index + 1}`}
+                    className="h-24 w-full object-cover"
+                  />
                 </div>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    removeFile(file.id)
-                  }}
-                  className="ml-3 text-gray-400 hover:text-red-500 transition-colors"
-                >
-                  <X className="w-4 h-4" />
-                </button>
+                
+                {/* Remove Button */}
+                {!disabled && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      removeFile(index)
+                    }}
+                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+
+                {/* File Info */}
+                <div className="mt-1">
+                  <p className="text-xs text-gray-500 truncate">
+                    {preview.file?.name || `Image ${index + 1}`}
+                  </p>
+                  {preview.file && (
+                    <p className="text-xs text-gray-400">
+                      {(preview.file.size / 1024 / 1024).toFixed(1)} MB
+                    </p>
+                  )}
+                </div>
               </div>
             ))}
           </div>
         </div>
       )}
 
-      {/* Upload Progress */}
-      {uploading && (
-        <div className="mt-4">
-          <div className="flex items-center">
-            <div className="flex-1 bg-gray-200 rounded-full h-2">
-              <div className="bg-blue-600 h-2 rounded-full transition-all duration-300" style={{width: '45%'}}></div>
-            </div>
-            <span className="ml-3 text-sm text-gray-600">Uploading...</span>
-          </div>
+      {/* Upload Instructions */}
+      {currentCount === 0 && (
+        <div className="text-center text-sm text-gray-500">
+          <ImageIcon className="mx-auto h-8 w-8 text-gray-300 mb-2" />
+          <p>No images uploaded yet</p>
+          <p>Supported formats: JPEG, PNG, GIF, WebP</p>
         </div>
       )}
-
-      {/* Guidelines */}
-      <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
-        <h4 className="text-sm font-medium text-blue-800 mb-1">
-          Photo Guidelines:
-        </h4>
-        <ul className="text-xs text-blue-700 space-y-1">
-          <li>• Take photos from multiple angles</li>
-          <li>• Include overall area and close-up details</li>
-          <li>• Ensure good lighting and clear visibility</li>
-          <li>• Show any obstacles or special conditions</li>
-          <li>• Photos help contractors provide accurate quotes</li>
-        </ul>
-      </div>
     </div>
   )
 }
 
-export default ImageUploader
+export default MultiImageUpload
+
+// Example usage in a form:
+/*
+const ProjectForm = () => {
+  const [formData, setFormData] = useState({
+    images: []
+  })
+
+  const handleImageChange = (files) => {
+    setFormData(prev => ({
+      ...prev,
+      images: files
+    }))
+  }
+
+  return (
+    <form>
+      <MultiImageUpload
+        fieldConfig={{
+          id: 'images',
+          accept: 'image/*',
+          maxFiles: 5
+        }}
+        value={formData.images}
+        onChange={handleImageChange}
+        error={null}
+      />
+    </form>
+  )
+}
+*/
