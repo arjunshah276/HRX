@@ -136,26 +136,54 @@ const NewProject = () => {
       calculateEstimate(data)
       setCurrentStep(3)
     } else if (currentStep === 3) {
-      // Submit project
-      const projectData = {
-        templateId: selectedTemplate,
-        formData: data,
-        files: uploadedFiles,
-        estimate,
-        userId: user.id,
-        status: 'pending',
-        createdAt: new Date().toISOString()
-      }
-      
-      // Store in localStorage for demo (replace with API call)
-      const projects = JSON.parse(localStorage.getItem('projects') || '[]')
-      const newProject = { ...projectData, id: Date.now().toString() }
-      projects.push(newProject)
-      localStorage.setItem('projects', JSON.stringify(projects))
-      
-      // Navigate to estimate display
-      navigate(`/estimate/${newProject.id}`, { state: { projectData: newProject } })
+  // Submit project
+  const projectData = {
+    template_id: selectedTemplate,
+    form_data: data,
+    files: uploadedFiles.map(f => ({ name: f.name, size: f.size, fieldId: f.fieldId })), // don't store blob
+    estimate,
+    user_id: user?.id || null,
+    status: 'pending',
+    created_at: new Date().toISOString()
+  }
+
+  // First try Supabase insert
+  let savedProject = null
+  if (import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY) {
+    try {
+      savedProject = await insertProject(projectData)
+    } catch (err) {
+      console.warn('Supabase insert failed, falling back to localStorage', err)
     }
+  }
+
+  // Fallback: store in localStorage with an id
+  if (!savedProject) {
+    const projects = JSON.parse(localStorage.getItem('projects') || '[]')
+    const newProject = { ...projectData, id: Date.now().toString() }
+    projects.push(newProject)
+    localStorage.setItem('projects', JSON.stringify(projects))
+    savedProject = newProject
+  }
+
+  // Optionally, log project create activity
+  try {
+    if (import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY) {
+      await insertActivity({
+        user_id: user?.id || null,
+        session_id: sessionStorage.getItem('sessionId') || null,
+        action: 'PROJECT_CREATED',
+        payload: { projectId: savedProject.id || savedProject.id, templateId: selectedTemplate }
+      })
+    }
+  } catch (err) {
+    console.warn('Supabase activity log failed for project create', err)
+  }
+
+  // Navigate to estimate display with the saved project data
+  navigate(`/estimate/${savedProject.id || savedProject.id}`, { state: { projectData: savedProject } })
+}
+
   }
 
   const renderField = (field) => {
