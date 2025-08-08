@@ -1,12 +1,80 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Home Renovation MVP</title>
+    <meta name="description" content="Template-based home renovation platform - Get accurate estimates and connect with verified contractors" />
+    <meta name="keywords" content="home renovation, contractors, estimates, deck refresh, landscaping, pressure washing" />
+    <meta name="author" content="Home Renovation Platform" />
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Home Renovation Platform - Template-Based Project Estimates" />
+    <meta property="og:description" content="Get instant, accurate estimates for your home renovation projects with our template-based platform. Connect with verified contractors in your area." />
+    <meta property="og:url" content="https://your-domain.vercel.app" />
+    <meta property="og:image" content="/og-image.jpg" />
+    
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image" />
+    <meta property="twitter:title" content="Home Renovation Platform" />
+    <meta property="twitter:description" content="Template-based home renovation estimates with verified contractors" />
+    <meta property="twitter:image" content="/twitter-image.jpg" />
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+    
+    <!-- Favicon -->
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+    
+    <title>Home Renovation Platform - Get Instant Project Estimates</title>
+    
+    <!-- Preload critical resources -->
+    <link rel="preload" href="/src/main.jsx" as="script" />
+    
+    <!-- Analytics (replace with your analytics code) -->
+    <!-- Google Analytics -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=GA_MEASUREMENT_ID"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'GA_MEASUREMENT_ID');
+    </script>
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
+    
+    <!-- Loading fallback for slow connections -->
+    <noscript>
+      <div style="display: flex; align-items: center; justify-content: center; height: 100vh; font-family: Inter, sans-serif; text-align: center; padding: 20px;">
+        <div>
+          <h1>Home Renovation Platform</h1>
+          <p>JavaScript is required to run this application.</p>
+          <p>Please enable JavaScript in your browser and refresh the page.</p>
+        </div>
+      </div>
+    </noscript>
+    
+    <!-- Service Worker Registration (for future PWA features) -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function() {
+          navigator.serviceWorker.register('/sw.js')
+            .then(function(registration) {
+              console.log('SW registered: ', registration);
+            })
+            .catch(function(registrationError) {
+              console.log('SW registration failed: ', registrationError);
+            });
+        });
+      }
+    </script>
   </body>
 </html>
