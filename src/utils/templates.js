@@ -512,16 +512,43 @@ export const calculateProjectEstimate = (templateId, formData, userId) => {
     // Add other template calculations...
   }
 
+    // --- after switch block ends (inside calculateProjectEstimate) ---
+
+  // Ensure numeric values
+  estimatedMaterialCost = Math.round(estimatedMaterialCost || 0)
+  transportation = Math.round(transportation || 0)
+  disposal = Math.round(disposal || 0)
+  totalLaborHours = Math.round((totalLaborHours || 0) * 10) / 10
+
+  // Prepare a breakdown object (currency values are in USD)
+  const breakdown = {
+    materialCost: estimatedMaterialCost,
+    transportation,
+    disposal,
+    // laborHours is shown separately (not converted to money because contractor rate varies)
+    laborHours: totalLaborHours
+  }
+
+  // Subtotal excludes platform fee & tax; labor cost not included because it needs a contractor rate
+  const subtotal = estimatedMaterialCost + transportation + disposal
+
+  // Create a "total" field to satisfy UI expectations (pre-labor)
+  const total = Math.round(subtotal)
+
   return {
     templateId,
     materials,
-    laborHours: Math.round(totalLaborHours * 10) / 10, // Round to 1 decimal
+    laborHours: totalLaborHours, // hours (number)
     transportation,
     disposal,
-    materialCost: Math.round(estimatedMaterialCost),
+    materialCost: estimatedMaterialCost,
     complexity: template.complexity,
-    estimatedTime: template.estimatedTime
+    estimatedTime: template.estimatedTime,
+    // New fields expected by frontend:
+    breakdown,
+    total
   }
+
 }
 
 // Calculate platform fee with cap
