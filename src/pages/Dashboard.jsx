@@ -22,37 +22,59 @@ const Dashboard = () => {
   const [activeTab, setActiveTab] = useState('overview')
 
   // Mock data - replace with real data from backend
-  const mockProjects = [
-    {
-      id: '1',
-      title: 'Deck Refresh',
-      status: 'completed',
-      contractor: 'Mike Johnson',
-      date: '2024-01-15',
-      cost: 1250,
-      rating: 5,
-      image: '/api/placeholder/300/200'
-    },
-    {
-      id: '2',
-      title: 'Garden Bed Installation',
-      status: 'in-progress',
-      contractor: 'Sarah Wilson',
-      date: '2024-01-20',
-      cost: 850,
-      progress: 75,
-      image: '/api/placeholder/300/200'
-    },
-    {
-      id: '3',
-      title: 'Pressure Washing',
-      status: 'pending',
-      contractor: 'Assigned Soon',
-      date: '2024-01-25',
-      cost: 320,
-      image: '/api/placeholder/300/200'
+  const mockProjects = function ProjectsTab() {
+  const { user } = useAuth()
+  const [projects, setProjects] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true)
+      let data = []
+      if (import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY) {
+        try {
+          data = await fetchProjectsForUser(user?.id || null)
+        } catch (err) {
+          console.warn('fetchProjectsForUser failed', err)
+        }
+      }
+
+      // fallback to localStorage
+      if (!data || data.length === 0) {
+        const local = JSON.parse(localStorage.getItem('projects') || '[]')
+        data = local.filter(p => (user?.id ? p.user_id === user?.id : true))
+      }
+
+      setProjects(data || [])
+      setLoading(false)
     }
-  ]
+    load()
+  }, [user])
+
+  if (loading) return <div>Loading projects...</div>
+  if (!projects.length) return <div>No projects yet</div>
+
+  return (
+    <div>
+      {projects.map(p => (
+        <div key={p.id} className="p-3 border rounded mb-2">
+          <div className="flex justify-between">
+            <div>
+              <div className="font-semibold">{p.template_id}</div>
+              <div className="text-sm text-gray-600">{new Date(p.created_at).toLocaleString()}</div>
+            </div>
+            <div className="text-right">
+              <div className="font-bold">${Math.round(p.estimate?.total || p.estimate?.subtotal || 0).toLocaleString()}</div>
+              <div className="text-xs text-gray-500">{p.status}</div>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+export default ProjectsTab
 
   const mockStats = {
     customer: {
