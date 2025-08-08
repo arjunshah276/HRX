@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useForm } from 'react-hook-form'
-import ImageUploader from './MultiImageUpload'
+import MultiImageUpload from './MultiImageUpload'
 import MapInput from './MapInput'
 import { Calculator, Upload, Map, MessageSquare } from 'lucide-react'
 
