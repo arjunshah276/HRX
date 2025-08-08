@@ -83,22 +83,53 @@ const NewProject = () => {
     })
   }
 
-  const calculateEstimate = (formData) => {
-    setIsCalculating(true)
-    
-    // Simulate API call delay
-    setTimeout(() => {
+ const calculateEstimate = async (formData) => {
+  setIsCalculating(true)
+
+  // Simulate API call delay
+  setTimeout(async () => {
+    let cost
+    try {
+      cost = calculateProjectEstimate(selectedTemplate, formData, user?.id)
+      setEstimate(cost ?? { total: 0, breakdown: {} })
+    } catch (err) {
+      console.error('Estimate calc failed:', err)
+      setEstimate({ total: 0, breakdown: {} })
+    }
+
+    // Log activity locally
+    const localLog = logActivity('ESTIMATE_CALCULATED', {
+      templateId: selectedTemplate,
+      formData: { ...formData, images: formData.images?.length || 0 },
+      userId: user?.id
+    })
+
+    // Try to log to Supabase (best-effort)
+    if (import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY) {
       try {
-  const cost = calculateProjectEstimate(selectedTemplate, formData, user?.id)
-  // ensure estimate has at least these properties
-  setEstimate(cost ?? { total: 0, breakdown: {} })
-} catch (err) {
-  console.error('Estimate calc failed:', err)
-  setEstimate({ total: 0, breakdown: {} })
+        await insertActivity({
+          user_id: user?.id || null,
+          session_id: sessionStorage.getItem('sessionId') || null,
+          action: 'ESTIMATE_CALCULATED',
+          payload: {
+            templateId: selectedTemplate,
+            summary: {
+              total: cost?.total || 0,
+              materialCost: cost?.materialCost || 0,
+              laborHours: cost?.laborHours || 0
+            },
+            formData: { ...formData, images: formData.images?.length || 0 }
+          }
+        })
+      } catch (err) {
+        console.warn('Supabase activity insert failed, falling back to local log')
+      }
+    }
+
+    setIsCalculating(false)
+  }, 1500)
 }
-setIsCalculating(false)
-    }, 1500)
-  }
+
 
   const onSubmit = (data) => {
     if (currentStep === 2) {
