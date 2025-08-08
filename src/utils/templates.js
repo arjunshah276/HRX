@@ -832,9 +832,9 @@ export const calculateProjectCost = (templateId, formData) => {
       breakdown.mulch = mulchCost
       
       // Labor
-      const laborCost = bedArea * template.pricing.labor
-      totalCost += laborCost
-      breakdown.labor = laborCost
+      const laborC = bedArea * template.pricing.labor
+      totalCost += laborC
+      breakdown.labor = laborC
       
       // Irrigation
       if (formData.irrigation && formData.irrigation !== 'none') {
