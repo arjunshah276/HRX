@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { useAuth } from '../App'
-import { templates, calculateProjectCost } from '../utils/templates'
+import { templates, calculateProjectEstimate } from '../utils/templates'
 import { 
   ArrowLeft, 
   ArrowRight, 
