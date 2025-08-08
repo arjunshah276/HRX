@@ -1,31 +1,51 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Link, useParams, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../App'
-import { templates, calculateTechnicianPayout } from '../utils/templates'
+import { 
+  templates, 
+  calculateProjectEstimate, 
+  calculateProjectTotal, 
+  mockContractors,
+  logActivity,
+  initializeSession
+} from '../utils/templates'
 import { 
   ArrowLeft, 
   CheckCircle, 
   Calendar, 
   Download, 
   Share, 
-  MapPin, 
   Clock,
   DollarSign,
   User,
   Star,
-  Phone,
-  Mail
+  Send,
+  AlertCircle,
+  CheckSquare
 } from 'lucide-react'
 
-const EstimateDisplay = () => {
+const DynamicEstimateDisplay = () => {
   const { projectId } = useParams()
   const location = useLocation()
   const navigate = useNavigate()
   const { user } = useAuth()
-  const [selectedContractor, setSelectedContractor] = useState(null)
-  const [showScheduling, setShowScheduling] = useState(false)
+  
+  const [selectedContractors, setSelectedContractors] = useState([])
+  const [quotesRequested, setQuotesRequested] = useState(false)
+  const [contractorQuotes, setContractorQuotes] = useState({})
+  const [finalContractor, setFinalContractor] = useState(null)
+  const [showQuoteModal, setShowQuoteModal] = useState(false)
 
-  // Get project data (from location state or localStorage)
+  // Initialize session on component mount
+  useEffect(() => {
+    initializeSession()
+    logActivity('ESTIMATE_PAGE_VIEWED', {
+      projectId,
+      userId: user?.id
+    })
+  }, [projectId, user])
+
+  // Get project data
   const projectData = location.state?.projectData || 
     JSON.parse(localStorage.getItem('projects') || '[]').find(p => p.id === projectId)
 
@@ -44,103 +64,116 @@ const EstimateDisplay = () => {
   }
 
   const template = templates[projectData.templateId]
-  const estimate = projectData.estimate
+  const baseEstimate = calculateProjectEstimate(
+    projectData.templateId, 
+    projectData.formData,
+    user?.id
+  )
 
-  // Mock contractor data
-  const availableContractors = [
-    {
-      id: 'tech-1',
-      name: 'Mike Johnson',
-      rating: 4.9,
-      completedJobs: 127,
-      specialties: ['Deck Refresh', 'Outdoor Projects'],
-      tier: 'gold',
-      commissionRate: 15,
-      availability: '2 days',
-      distance: '3.2 miles',
-      phone: '(555) 123-4567',
-      email: 'mike.j@example.com',
-      reviews: 89,
-      profileImage: '/api/placeholder/64/64'
-    },
-    {
-      id: 'tech-2',
-      name: 'Sarah Wilson',
-      rating: 4.8,
-      completedJobs: 94,
-      specialties: ['Garden Design', 'Landscaping'],
-      tier: 'silver',
-      commissionRate: 20,
-      availability: '1 week',
-      distance: '5.1 miles',
-      phone: '(555) 987-6543',
-      email: 'sarah.w@example.com',
-      reviews: 72,
-      profileImage: '/api/placeholder/64/64'
-    },
-    {
-      id: 'tech-3',
-      name: 'David Chen',
-      rating: 4.7,
-      completedJobs: 156,
-      specialties: ['Pressure Washing', 'Maintenance'],
-      tier: 'bronze',
-      commissionRate: 25,
-      availability: '3 days',
-      distance: '7.8 miles',
-      phone: '(555) 456-7890',
-      email: 'david.c@example.com',
-      reviews: 134,
-      profileImage: '/api/placeholder/64/64'
-    }
-  ]
+  // Calculate pricing for each contractor
+  const contractorPricing = mockContractors.reduce((acc, contractor) => {
+    acc[contractor.id] = calculateProjectTotal(baseEstimate, contractor.hourlyRate)
+    return acc
+  }, {})
 
-  const handleContractorSelect = (contractor) => {
-    setSelectedContractor(contractor)
-    setShowScheduling(true)
+  const handleContractorToggle = (contractorId) => {
+    logActivity('CONTRACTOR_SELECTED', {
+      contractorId,
+      projectId,
+      userId: user?.id
+    })
+
+    setSelectedContractors(prev => 
+      prev.includes(contractorId) 
+        ? prev.filter(id => id !== contractorId)
+        : [...prev, contractorId]
+    )
   }
 
-  const handleProjectConfirm = () => {
-    // Update project status
+  const handleRequestQuotes = () => {
+    if (selectedContractors.length === 0) {
+      alert('Please select at least one contractor to request quotes from.')
+      return
+    }
+
+    logActivity('QUOTES_REQUESTED', {
+      selectedContractors,
+      projectId,
+      userId: user?.id,
+      baseEstimate
+    })
+
+    setQuotesRequested(true)
+    setShowQuoteModal(true)
+    
+    // Simulate contractor responses (in real app, this would be async)
+    setTimeout(() => {
+      const quotes = {}
+      selectedContractors.forEach(contractorId => {
+        const contractor = mockContractors.find(c => c.id === contractorId)
+        const basePrice = contractorPricing[contractorId]
+        
+        // Add some variation to simulate real quotes
+        const variation = (Math.random() - 0.5) * 0.1 // ±5% variation
+        const adjustedTotal = Math.round(basePrice.total * (1 + variation))
+        
+        quotes[contractorId] = {
+          ...basePrice,
+          total: adjustedTotal,
+          message: `Available ${contractor.availability}. Quote valid for 7 days.`,
+          confirmed: true,
+          respondedAt: new Date().toISOString()
+        }
+      })
+      
+      setContractorQuotes(quotes)
+      logActivity('QUOTES_RECEIVED', {
+        quotes,
+        projectId,
+        userId: user?.id
+      })
+    }, 2000)
+  }
+
+  const handleFinalSelection = (contractorId) => {
+    const contractor = mockContractors.find(c => c.id === contractorId)
+    const quote = contractorQuotes[contractorId]
+    
+    logActivity('CONTRACTOR_FINALIZED', {
+      contractorId,
+      contractor: contractor.name,
+      finalQuote: quote,
+      projectId,
+      userId: user?.id
+    })
+
+    setFinalContractor(contractor)
+    
+    // Update project in storage
     const projects = JSON.parse(localStorage.getItem('projects') || '[]')
     const updatedProjects = projects.map(p => 
       p.id === projectId 
-        ? { ...p, status: 'confirmed', contractor: selectedContractor, confirmedAt: new Date().toISOString() }
+        ? { 
+            ...p, 
+            status: 'contractor-selected',
+            selectedContractor: contractor,
+            finalQuote: quote,
+            updatedAt: new Date().toISOString()
+          }
         : p
     )
     localStorage.setItem('projects', JSON.stringify(updatedProjects))
-    
-    navigate('/dashboard')
   }
 
-  const getTierColor = (tier) => {
-    switch (tier) {
-      case 'gold': return 'text-yellow-600 bg-yellow-100'
-      case 'silver': return 'text-gray-600 bg-gray-100'
-      case 'bronze': return 'text-orange-600 bg-orange-100'
-      default: return 'text-gray-600 bg-gray-100'
-    }
+  const getLowestQuote = () => {
+    if (Object.keys(contractorQuotes).length === 0) return null
+    return Math.min(...Object.values(contractorQuotes).map(q => q.total))
   }
 
-  // Enhanced cost breakdown calculation with proper structure
-  const calculateEnhancedCostBreakdown = (estimate) => {
-    const baseTotal = estimate.total || 0
-    const materialCost = Math.round(baseTotal * 0.6) // 60% materials
-    const laborCost = Math.round(baseTotal * 0.3) // 30% labor
-    const platformFee = Math.round((materialCost + laborCost) * 0.05) // 5% platform fee
-    const gst = Math.round((materialCost + laborCost + platformFee) * 0.05) // 5% GST
-    const finalTotal = materialCost + laborCost + platformFee + gst
-
-    return {
-      materials: materialCost,
-      labor: laborCost,
-      platformFee,
-      gst,
-      finalTotal
-    }
+  const getHighestQuote = () => {
+    if (Object.keys(contractorQuotes).length === 0) return null
+    return Math.max(...Object.values(contractorQuotes).map(q => q.total))
   }
-
-  const enhancedBreakdown = calculateEnhancedCostBreakdown(estimate)
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -161,12 +194,14 @@ const EstimateDisplay = () => {
               <div className="text-3xl mr-4">{template.icon}</div>
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">
-                  {template.title} Estimate
+                  {template.title} Project Estimate
                 </h1>
                 <p className="text-gray-600">Project ID: #{projectId}</p>
                 <div className="flex items-center mt-2 text-sm text-gray-500">
                   <Calendar className="w-4 h-4 mr-1" />
                   Created: {new Date(projectData.createdAt).toLocaleDateString()}
+                  <Clock className="w-4 h-4 ml-4 mr-1" />
+                  Estimated Duration: {template.estimatedTime}
                 </div>
               </div>
             </div>
@@ -183,113 +218,127 @@ const EstimateDisplay = () => {
           </div>
         </div>
 
+        {/* Quote Status Banner */}
+        {quotesRequested && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+            <div className="flex items-center">
+              <Send className="w-5 h-5 text-blue-600 mr-2" />
+              <div>
+                <h3 className="text-sm font-medium text-blue-900">
+                  Quotes Requested from {selectedContractors.length} Contractor(s)
+                </h3>
+                <p className="text-sm text-blue-700 mt-1">
+                  {Object.keys(contractorQuotes).length > 0 
+                    ? `${Object.keys(contractorQuotes).length} quote(s) received. Price range: ${getLowestQuote()?.toLocaleString()} - ${getHighestQuote()?.toLocaleString()}`
+                    : 'Waiting for contractor responses...'
+                  }
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left Column - Estimate Details */}
+          {/* Left Column - Project Details */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Enhanced Cost Breakdown */}
+            {/* Base Project Estimate */}
             <div className="bg-white rounded-lg shadow-md p-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">Cost Breakdown</h2>
-              
-              {/* Materials Section */}
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold text-gray-900">Base Project Estimate</h2>
+                <span className="px-3 py-1 bg-yellow-100 text-yellow-800 text-sm rounded-full">
+                  Pricing Varies by Contractor
+                </span>
+              </div>
+
+              {/* Materials Breakdown */}
               <div className="mb-6">
                 <h3 className="text-lg font-medium text-gray-800 mb-3">Materials Required</h3>
                 <div className="space-y-2">
-                  {estimate.breakdown && Object.entries(estimate.breakdown).map(([key, value]) => {
-                    if (key.toLowerCase().includes('material') || key.toLowerCase().includes('supply')) {
-                      return (
-                        <div key={key} className="flex justify-between py-2 border-b border-gray-100">
-                          <span className="capitalize text-gray-600">
-                            {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
-                          </span>
-                          <span className="font-medium">${value.toLocaleString()}</span>
-                        </div>
-                      )
-                    }
-                    return null
-                  })}
-                  <div className="flex justify-between py-2 border-b border-gray-200 font-medium">
-                    <span className="text-gray-700">Total Materials Cost</span>
-                    <span className="text-blue-600">${enhancedBreakdown.materials.toLocaleString()}</span>
+                  {baseEstimate.materials.map((material, index) => (
+                    <div key={index} className="flex justify-between items-center py-2 border-b border-gray-100">
+                      <div className="flex-1">
+                        <span className="text-gray-900 font-medium">{material.item}</span>
+                        <span className="text-gray-500 text-sm ml-2">({material.quantity})</span>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-gray-600 text-sm">${material.unitPrice}/unit</span>
+                        <p className="font-medium">${material.totalPrice.toLocaleString()}</p>
+                      </div>
+                    </div>
+                  ))}
+                  <div className="flex justify-between py-2 border-t border-gray-200 font-medium">
+                    <span className="text-gray-700">Total Materials</span>
+                    <span className="text-blue-600">${baseEstimate.materialCost.toLocaleString()}</span>
                   </div>
                 </div>
               </div>
 
-              {/* Labor Section */}
-              <div className="mb-6">
-                <h3 className="text-lg font-medium text-gray-800 mb-3">Labor & Skills Required</h3>
-                <div className="space-y-2">
-                  <div className="flex justify-between py-2 border-b border-gray-100">
-                    <span className="text-gray-600">Skilled Technician</span>
-                    <span className="font-medium">8 hours</span>
+              {/* Labor & Other Costs */}
+              <div className="space-y-3">
+                <div className="flex justify-between py-2 border-b border-gray-100">
+                  <div>
+                    <span className="text-gray-700 font-medium">Labor Hours Required</span>
+                    <p className="text-sm text-gray-500">Rate varies by contractor</p>
                   </div>
-                  <div className="flex justify-between py-2 border-b border-gray-100">
-                    <span className="text-gray-600">Setup & Cleanup</span>
-                    <span className="font-medium">2 hours</span>
-                  </div>
-                  <div className="flex justify-between py-2 border-b border-gray-200 font-medium">
-                    <span className="text-gray-700">Total Labor Cost</span>
-                    <span className="text-blue-600">${enhancedBreakdown.labor.toLocaleString()}</span>
-                  </div>
+                  <span className="font-medium text-gray-900">{baseEstimate.laborHours} hours</span>
                 </div>
-              </div>
+                
+                <div className="flex justify-between py-2 border-b border-gray-100">
+                  <span className="text-gray-700">Transportation</span>
+                  <span className="font-medium">${baseEstimate.transportation}</span>
+                </div>
+                
+                {baseEstimate.disposal > 0 && (
+                  <div className="flex justify-between py-2 border-b border-gray-100">
+                    <span className="text-gray-700">Disposal & Cleanup</span>
+                    <span className="font-medium">${baseEstimate.disposal}</span>
+                  </div>
+                )}
 
-              {/* Fees and Final Total */}
-              <div className="space-y-3 border-t border-gray-200 pt-4">
-                <div className="flex justify-between py-2">
-                  <span className="text-gray-600">Platform Fee (5%)</span>
-                  <span className="font-medium">${enhancedBreakdown.platformFee.toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between py-2 border-b border-gray-200">
-                  <span className="text-gray-600">GST (5%)</span>
-                  <span className="font-medium">${enhancedBreakdown.gst.toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between items-center pt-2">
-                  <span className="text-xl font-bold text-gray-900">Final Total</span>
-                  <span className="text-2xl font-bold text-green-600">
-                    ${enhancedBreakdown.finalTotal.toLocaleString()}
-                  </span>
+                <div className="pt-3 border-t border-gray-200">
+                  <div className="bg-yellow-50 p-3 rounded-lg">
+                    <div className="flex items-start">
+                      <AlertCircle className="w-5 h-5 text-yellow-600 mr-2 mt-0.5" />
+                      <div className="text-sm">
+                        <p className="text-yellow-800 font-medium">Final pricing depends on contractor selection</p>
+                        <p className="text-yellow-700 mt-1">
+                          Each contractor has different hourly rates. Platform fee (10%, max $399) and 5% GST will be added to final total.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* Project Details Summary */}
+            {/* Project Specifications */}
             <div className="bg-white rounded-lg shadow-md p-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">Project Details</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-3">
-                  <div>
-                    <span className="text-sm font-medium text-gray-500">Template</span>
-                    <p className="text-gray-900">{template.title}</p>
-                  </div>
-                  <div>
-                    <span className="text-sm font-medium text-gray-500">Category</span>
-                    <p className="text-gray-900 capitalize">{template.category}</p>
-                  </div>
-                  <div>
-                    <span className="text-sm font-medium text-gray-500">Estimated Duration</span>
-                    <p className="text-gray-900">{template.estimatedTime}</p>
-                  </div>
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">Project Specifications</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                <div>
+                  <span className="text-sm font-medium text-gray-500">Category</span>
+                  <p className="text-gray-900 capitalize">{template.category}</p>
                 </div>
-                <div className="space-y-3">
-                  <div>
-                    <span className="text-sm font-medium text-gray-500">Complexity</span>
-                    <p className="text-gray-900 capitalize">{template.complexity}</p>
-                  </div>
-                  <div>
-                    <span className="text-sm font-medium text-gray-500">Status</span>
-                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                      Pending Contractor Selection
-                    </span>
-                  </div>
+                <div>
+                  <span className="text-sm font-medium text-gray-500">Complexity</span>
+                  <p className="text-gray-900 capitalize">{baseEstimate.complexity}</p>
+                </div>
+                <div>
+                  <span className="text-sm font-medium text-gray-500">Estimated Duration</span>
+                  <p className="text-gray-900">{baseEstimate.estimatedTime}</p>
+                </div>
+                <div>
+                  <span className="text-sm font-medium text-gray-500">Labor Hours</span>
+                  <p className="text-gray-900">{baseEstimate.laborHours} hours</p>
                 </div>
               </div>
 
-              {/* Form Data Summary - FIXED IMAGES DISPLAY */}
-              <div className="mt-6 pt-6 border-t border-gray-200">
-                <h3 className="text-lg font-medium text-gray-900 mb-3">Specifications</h3>
+              {/* Form Data Display */}
+              <div className="border-t border-gray-200 pt-6">
+                <h3 className="text-lg font-medium text-gray-900 mb-3">Customer Requirements</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                   {Object.entries(projectData.formData).map(([key, value]) => {
-                    // Handle images separately
+                    // Handle images
                     if (key.toLowerCase().includes('image') || key.toLowerCase().includes('photo')) {
                       if (Array.isArray(value) && value.length > 0) {
                         return (
@@ -363,146 +412,201 @@ const EstimateDisplay = () => {
             </div>
           </div>
 
-          {/* Right Column - Contractor Selection - FIXED SELECT BUTTON */}
+          {/* Right Column - Contractor Selection */}
           <div className="space-y-6">
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">Available Contractors</h2>
-              <div className="space-y-4">
-                {availableContractors.map((contractor) => {
-                  // FIXED: Proper technician payout calculation
-                  const technicianPayoutData = calculateTechnicianPayout 
-                    ? calculateTechnicianPayout(enhancedBreakdown.finalTotal, contractor.commissionRate)
-                    : { technicianPayout: Math.round(enhancedBreakdown.finalTotal * (contractor.commissionRate / 100)) }
-                  
-                  const technicianPayout = technicianPayoutData.technicianPayout || technicianPayoutData
-                  
-                  return (
-                    <div key={contractor.id} className="border border-gray-200 rounded-lg p-4 hover:border-blue-300 transition-colors">
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex items-center space-x-3">
-                          <img 
-                            src={contractor.profileImage} 
-                            alt={contractor.name}
-                            className="w-12 h-12 rounded-full"
-                          />
-                          <div>
-                            <h3 className="font-semibold text-gray-900">{contractor.name}</h3>
-                            <div className="flex items-center space-x-2">
+            {!quotesRequested ? (
+              // Contractor Selection Phase
+              <div className="bg-white rounded-lg shadow-md p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-semibold text-gray-900">Select Contractors</h2>
+                  <span className="text-sm text-gray-500">
+                    {selectedContractors.length} selected
+                  </span>
+                </div>
+                
+                <div className="space-y-4 mb-6">
+                  {mockContractors.map((contractor) => {
+                    const pricing = contractorPricing[contractor.id]
+                    const isSelected = selectedContractors.includes(contractor.id)
+                    
+                    return (
+                      <div 
+                        key={contractor.id} 
+                        className={`border rounded-lg p-4 cursor-pointer transition-colors ${
+                          isSelected 
+                            ? 'border-blue-500 bg-blue-50' 
+                            : 'border-gray-200 hover:border-blue-300'
+                        }`}
+                        onClick={() => handleContractorToggle(contractor.id)}
+                      >
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex items-center space-x-3">
+                            <div className="relative">
+                              <img 
+                                src={contractor.profileImage} 
+                                alt={contractor.name}
+                                className="w-12 h-12 rounded-full"
+                              />
+                              {isSelected && (
+                                <CheckSquare className="absolute -top-1 -right-1 w-5 h-5 text-blue-600 bg-white rounded" />
+                              )}
+                            </div>
+                            <div>
+                              <h3 className="font-semibold text-gray-900">{contractor.name}</h3>
                               <div className="flex items-center">
                                 <Star className="w-4 h-4 text-yellow-400 fill-current" />
                                 <span className="text-sm text-gray-600 ml-1">
                                   {contractor.rating} ({contractor.reviews} reviews)
                                 </span>
                               </div>
-                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${getTierColor(contractor.tier)}`}>
-                                {contractor.tier.charAt(0).toUpperCase() + contractor.tier.slice(1)}
-                              </span>
                             </div>
                           </div>
                         </div>
-                      </div>
 
-                      <div className="grid grid-cols-2 gap-4 text-sm mb-3">
-                        <div>
-                          <span className="text-gray-500">Completed Jobs:</span>
-                          <p className="font-medium">{contractor.completedJobs}</p>
+                        <div className="grid grid-cols-2 gap-4 text-sm mb-3">
+                          <div>
+                            <span className="text-gray-500">Hourly Rate:</span>
+                            <p className="font-medium">${contractor.hourlyRate}/hr</p>
+                          </div>
+                          <div>
+                            <span className="text-gray-500">Available:</span>
+                            <p className="font-medium">{contractor.availability}</p>
+                          </div>
+                          <div>
+                            <span className="text-gray-500">Distance:</span>
+                            <p className="font-medium">{contractor.distance}</p>
+                          </div>
+                          <div>
+                            <span className="text-gray-500">Jobs Done:</span>
+                            <p className="font-medium">{contractor.completedJobs}</p>
+                          </div>
                         </div>
-                        <div>
-                          <span className="text-gray-500">Available:</span>
-                          <p className="font-medium">{contractor.availability}</p>
+
+                        <div className="mb-3">
+                          <span className="text-sm text-gray-500">Specialties:</span>
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {contractor.specialties.map((specialty, index) => (
+                              <span key={index} className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded">
+                                {specialty}
+                              </span>
+                            ))}
+                          </div>
                         </div>
-                        <div>
-                          <span className="text-gray-500">Distance:</span>
-                          <p className="font-medium">{contractor.distance}</p>
-                        </div>
-                        <div>
-                          <span className="text-gray-500">Commission:</span>
-                          <p className="font-medium">{contractor.commissionRate}%</p>
+
+                        <div className="pt-3 border-t border-gray-100">
+                          <div className="text-center">
+                            <span className="text-sm text-gray-500">Estimated Total:</span>
+                            <p className="text-lg font-bold text-green-600">
+                              ${pricing.total.toLocaleString()}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              Labor: ${pricing.laborCost.toLocaleString()} ({baseEstimate.laborHours}h × ${contractor.hourlyRate}/h)
+                            </p>
+                          </div>
                         </div>
                       </div>
+                    )
+                  })}
+                </div>
 
-                      <div className="mb-3">
-                        <span className="text-sm text-gray-500">Specialties:</span>
-                        <div className="flex flex-wrap gap-1 mt-1">
-                          {contractor.specialties.map((specialty, index) => (
-                            <span key={index} className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded">
-                              {specialty}
-                            </span>
-                          ))}
+                <button
+                  onClick={handleRequestQuotes}
+                  disabled={selectedContractors.length === 0}
+                  className="w-full bg-blue-600 text-white rounded-md py-3 px-4 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed font-medium flex items-center justify-center"
+                >
+                  <Send className="w-4 h-4 mr-2" />
+                  Request Quotes from Selected Contractors
+                </button>
+              </div>
+            ) : (
+              // Quote Results Phase
+              <div className="bg-white rounded-lg shadow-md p-6">
+                <h2 className="text-xl font-semibold text-gray-900 mb-4">Contractor Quotes</h2>
+                
+                <div className="space-y-4">
+                  {selectedContractors.map((contractorId) => {
+                    const contractor = mockContractors.find(c => c.id === contractorId)
+                    const quote = contractorQuotes[contractorId]
+                    
+                    return (
+                      <div key={contractorId} className="border border-gray-200 rounded-lg p-4">
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center space-x-3">
+                            <img 
+                              src={contractor.profileImage} 
+                              alt={contractor.name}
+                              className="w-10 h-10 rounded-full"
+                            />
+                            <div>
+                              <h3 className="font-semibold text-gray-900">{contractor.name}</h3>
+                              <div className="flex items-center">
+                                <Star className="w-4 h-4 text-yellow-400 fill-current" />
+                                <span className="text-sm text-gray-600 ml-1">{contractor.rating}</span>
+                              </div>
+                            </div>
+                          </div>
+                          {quote ? (
+                            <div className="text-right">
+                              <p className="text-lg font-bold text-green-600">
+                                ${quote.total.toLocaleString()}
+                              </p>
+                              <p className="text-xs text-gray-500">Quote received</p>
+                            </div>
+                          ) : (
+                            <div className="text-right">
+                              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                              <p className="text-xs text-gray-500 mt-1">Waiting...</p>
+                            </div>
+                          )}
                         </div>
+
+                        {quote && (
+                          <>
+                            <div className="text-sm text-gray-600 mb-3">
+                              <p>"{quote.message}"</p>
+                            </div>
+                            
+                            <div className="bg-gray-50 rounded p-3 text-sm mb-3">
+                              <div className="grid grid-cols-2 gap-2">
+                                <div>Materials: ${quote.materialCost.toLocaleString()}</div>
+                                <div>Labor: ${quote.laborCost.toLocaleString()}</div>
+                                <div>Transport: ${quote.transportation.toLocaleString()}</div>
+                                <div>Disposal: ${quote.disposal.toLocaleString()}</div>
+                                <div>Platform Fee: ${quote.platformFee.toLocaleString()}</div>
+                                <div>GST: ${quote.gst.toLocaleString()}</div>
+                              </div>
+                            </div>
+
+                            {!finalContractor && (
+                              <button
+                                onClick={() => handleFinalSelection(contractorId)}
+                                className="w-full bg-green-600 text-white rounded-md py-2 px-4 hover:bg-green-700 font-medium"
+                              >
+                                Select This Contractor
+                              </button>
+                            )}
+                          </>
+                        )}
                       </div>
+                    )
+                  })}
+                </div>
 
-                      <div className="flex items-center justify-between pt-3 border-t border-gray-100">
-                        <div>
-                          <span className="text-sm text-gray-500">Technician Payout:</span>
-                          <p className="font-semibold text-green-600">${technicianPayout.toLocaleString()}</p>
-                        </div>
-                        <button
-                          onClick={() => handleContractorSelect(contractor)}
-                          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium transition-colors cursor-pointer"
-                          type="button"
-                        >
-                          Select
-                        </button>
+                {finalContractor && (
+                  <div className="mt-6 bg-green-50 border border-green-200 rounded-lg p-4">
+                    <div className="flex items-center">
+                      <CheckCircle className="w-5 h-5 text-green-600 mr-2" />
+                      <div>
+                        <h3 className="text-sm font-medium text-green-900">
+                          Contractor Selected: {finalContractor.name}
+                        </h3>
+                        <p className="text-sm text-green-700 mt-1">
+                          You can now proceed to scheduling and project kickoff.
+                        </p>
                       </div>
                     </div>
-                  )
-                })}
-              </div>
-            </div>
-
-            {/* Scheduling Modal */}
-            {showScheduling && selectedContractor && (
-              <div className="bg-white rounded-lg shadow-md p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                  Schedule with {selectedContractor.name}
-                </h3>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Preferred Date
-                    </label>
-                    <input
-                      type="date"
-                      className="w-full border border-gray-300 rounded-md px-3 py-2"
-                      min={new Date().toISOString().split('T')[0]}
-                    />
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Preferred Time
-                    </label>
-                    <select className="w-full border border-gray-300 rounded-md px-3 py-2">
-                      <option>Morning (8:00 AM - 12:00 PM)</option>
-                      <option>Afternoon (12:00 PM - 5:00 PM)</option>
-                      <option>Evening (5:00 PM - 8:00 PM)</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Additional Notes
-                    </label>
-                    <textarea
-                      rows="3"
-                      className="w-full border border-gray-300 rounded-md px-3 py-2"
-                      placeholder="Any special instructions or requirements..."
-                    ></textarea>
-                  </div>
-                  <div className="flex space-x-3">
-                    <button
-                      onClick={handleProjectConfirm}
-                      className="flex-1 bg-green-600 text-white rounded-md py-2 px-4 hover:bg-green-700 font-medium"
-                    >
-                      Confirm Booking
-                    </button>
-                    <button
-                      onClick={() => setShowScheduling(false)}
-                      className="flex-1 bg-gray-300 text-gray-700 rounded-md py-2 px-4 hover:bg-gray-400 font-medium"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
+                )}
               </div>
             )}
           </div>
@@ -512,4 +616,4 @@ const EstimateDisplay = () => {
   )
 }
 
-export default EstimateDisplay
+export default DynamicEstimateDisplay
