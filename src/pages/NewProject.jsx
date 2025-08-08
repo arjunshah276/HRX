@@ -87,9 +87,15 @@ const NewProject = () => {
     
     // Simulate API call delay
     setTimeout(() => {
-      const cost = calculateProjectEstimate(selectedTemplate, formData, user?.id)
-      setEstimate(cost)
-      setIsCalculating(false)
+      try {
+  const cost = calculateProjectEstimate(selectedTemplate, formData, user?.id)
+  // ensure estimate has at least these properties
+  setEstimate(cost ?? { total: 0, breakdown: {} })
+} catch (err) {
+  console.error('Estimate calc failed:', err)
+  setEstimate({ total: 0, breakdown: {} })
+}
+setIsCalculating(false)
     }, 1500)
   }
 
