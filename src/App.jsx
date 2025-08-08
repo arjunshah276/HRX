@@ -85,6 +85,7 @@ function App() {
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
+            <Route path="/estimate/:projectId" element={<DynamicEstimateDisplay />} />
             <Route 
               path="/dashboard" 
               element={
