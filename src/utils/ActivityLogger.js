@@ -298,16 +298,6 @@ export class ActivityLogger {
         timeSpent: pv.data.timeOnPreviousPage || 0
       })),
       totalInteractions: this.interactions.length,
-  logUserJourney() {
-    return {
-      sessionId: this.sessionId,
-      sessionDuration: Date.now() - new Date(sessionStorage.getItem('hrx_session_start')).getTime(),
-      pagesVisited: this.pageViews.map(pv => ({
-        page: pv.data.page,
-        timestamp: pv.timestamp,
-        timeSpent: pv.data.timeOnPreviousPage || 0
-      })),
-      totalInteractions: this.interactions.length,
       interactionTypes: [...new Set(this.interactions.map(i => i.action))],
       conversionFunnel: this.getConversionFunnelData(),
       dropOffPoints: this.getDropOffPoints()
