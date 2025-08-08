@@ -8,7 +8,8 @@ import NewProject from './pages/NewProject'
 import DynamicEstimateDisplay from './pages/DynamicEstimateDisplay'
 import TechnicianProfile from './pages/TechnicianProfile'
 import Navbar from './components/Navbar'
-import { activityLogger, logProjectFunnel } from '../utils/ActivityLogger'
+// Fix the import path - choose the correct one based on your file structure
+import { activityLogger, logProjectFunnel } from './utils/ActivityLogger'
 
 // Auth Context
 const AuthContext = createContext()
@@ -85,7 +86,6 @@ function App() {
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
-            <Route path="/estimate/:projectId" element={<DynamicEstimateDisplay />} />
             <Route 
               path="/dashboard" 
               element={
@@ -102,14 +102,10 @@ function App() {
                 </ProtectedRoute>
               } 
             />
-            <Route 
-              path="/estimate/:projectId" 
-              element={
-                <ProtectedRoute>
-                  <EstimateDisplay />
-                </ProtectedRoute>
-              } 
-            />
+            
+            {/* Public estimate display route */}
+            <Route path="/estimate/:projectId" element={<DynamicEstimateDisplay />} />
+            
             <Route 
               path="/technician/:technicianId" 
               element={
