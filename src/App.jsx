@@ -8,6 +8,7 @@ import NewProject from './pages/NewProject'
 import EstimateDisplay from './pages/EstimateDisplay'
 import TechnicianProfile from './pages/TechnicianProfile'
 import Navbar from './components/Navbar'
+import { activityLogger, logProjectFunnel } from '../utils/ActivityLogger'
 
 // Auth Context
 const AuthContext = createContext()
