@@ -502,16 +502,35 @@ setIsCalculating(false)
                   <div className="bg-gray-50 rounded-lg p-6">
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">Cost Breakdown</h3>
                     <div className="space-y-2">
-                      {Object.entries(estimate?.breakdown || {}).map(([key, value]) => (
-                        <div key={key} className="flex justify-between text-sm">
-                          <span className="capitalize text-gray-600">
-                            {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
-                          </span>
-                          <span className="font-medium">
-                            {value < 0 ? '-' : ''}${Math.abs(value).toLocaleString()}
-                          </span>
-                        </div>
-                      ))}
+                      {Object.entries(estimate?.breakdown || {}).map(([key, rawValue]) => {
+  // Normalize value to number when appropriate
+  const value = typeof rawValue === 'number' ? rawValue : Number(rawValue || 0)
+
+  const label = key
+    .replace(/([A-Z])/g, ' $1')
+    .replace(/^./, str => str.toUpperCase())
+
+  // Special-case labor hours to show units instead of currency
+  if (key === 'laborHours') {
+    return (
+      <div key={key} className="flex justify-between text-sm">
+        <span className="capitalize text-gray-600">{label}</span>
+        <span className="font-medium">{value} hrs</span>
+      </div>
+    )
+  }
+
+  // Default: show currency
+  return (
+    <div key={key} className="flex justify-between text-sm">
+      <span className="capitalize text-gray-600">{label}</span>
+      <span className="font-medium">
+        {value < 0 ? '-' : ''}${Math.abs(Math.round(value)).toLocaleString()}
+      </span>
+    </div>
+  )
+})}
+
                       <div className="border-t border-gray-300 pt-2 mt-4">
                         <div className="flex justify-between text-lg font-bold">
                           <span>Total Project Cost</span>
