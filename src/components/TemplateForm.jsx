@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useForm } from 'react-hook-form'
-import ImageUploader from './ImageUploader'
+import ImageUploader from './MultiImageUpload'
 import MapInput from './MapInput'
 import { Calculator, Upload, Map, MessageSquare } from 'lucide-react'
 
@@ -254,7 +254,7 @@ const TemplateForm = ({ template, onSubmit, initialData = {} }) => {
           <p className="text-sm text-gray-600 mb-4">
             Upload photos of the area to help contractors provide accurate estimates
           </p>
-          <ImageUploader 
+          <MultiImageUpload 
             onUpload={setImages}
             maxFiles={5}
             acceptedTypes={['image/jpeg', 'image/png', 'image/webp']}
