@@ -122,6 +122,26 @@ const EstimateDisplay = () => {
     }
   }
 
+  // Enhanced cost breakdown calculation with proper structure
+  const calculateEnhancedCostBreakdown = (estimate) => {
+    const baseTotal = estimate.total || 0
+    const materialCost = Math.round(baseTotal * 0.6) // 60% materials
+    const laborCost = Math.round(baseTotal * 0.3) // 30% labor
+    const platformFee = Math.round((materialCost + laborCost) * 0.05) // 5% platform fee
+    const gst = Math.round((materialCost + laborCost + platformFee) * 0.05) // 5% GST
+    const finalTotal = materialCost + laborCost + platformFee + gst
+
+    return {
+      materials: materialCost,
+      labor: laborCost,
+      platformFee,
+      gst,
+      finalTotal
+    }
+  }
+
+  const enhancedBreakdown = calculateEnhancedCostBreakdown(estimate)
+
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="container mx-auto px-4 max-w-6xl">
@@ -166,30 +186,67 @@ const EstimateDisplay = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left Column - Estimate Details */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Cost Breakdown */}
+            {/* Enhanced Cost Breakdown */}
             <div className="bg-white rounded-lg shadow-md p-6">
               <h2 className="text-xl font-semibold text-gray-900 mb-4">Cost Breakdown</h2>
-              <div className="space-y-3">
-                {Object.entries(estimate.breakdown).map(([key, value]) => (
-                  <div key={key} className="flex justify-between py-2 border-b border-gray-100">
-                    <span className="capitalize text-gray-600">
-                      {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
-                    </span>
-                    <span className="font-medium">
-                      {value < 0 ? (
-                        <span className="text-green-600">-${Math.abs(value).toLocaleString()}</span>
-                      ) : (
-                        <span>${value.toLocaleString()}</span>
-                      )}
-                    </span>
+              
+              {/* Materials Section */}
+              <div className="mb-6">
+                <h3 className="text-lg font-medium text-gray-800 mb-3">Materials Required</h3>
+                <div className="space-y-2">
+                  {estimate.breakdown && Object.entries(estimate.breakdown).map(([key, value]) => {
+                    if (key.toLowerCase().includes('material') || key.toLowerCase().includes('supply')) {
+                      return (
+                        <div key={key} className="flex justify-between py-2 border-b border-gray-100">
+                          <span className="capitalize text-gray-600">
+                            {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
+                          </span>
+                          <span className="font-medium">${value.toLocaleString()}</span>
+                        </div>
+                      )
+                    }
+                    return null
+                  })}
+                  <div className="flex justify-between py-2 border-b border-gray-200 font-medium">
+                    <span className="text-gray-700">Total Materials Cost</span>
+                    <span className="text-blue-600">${enhancedBreakdown.materials.toLocaleString()}</span>
                   </div>
-                ))}
+                </div>
               </div>
-              <div className="border-t border-gray-300 pt-4 mt-4">
-                <div className="flex justify-between items-center">
-                  <span className="text-xl font-bold text-gray-900">Total Project Cost</span>
+
+              {/* Labor Section */}
+              <div className="mb-6">
+                <h3 className="text-lg font-medium text-gray-800 mb-3">Labor & Skills Required</h3>
+                <div className="space-y-2">
+                  <div className="flex justify-between py-2 border-b border-gray-100">
+                    <span className="text-gray-600">Skilled Technician</span>
+                    <span className="font-medium">8 hours</span>
+                  </div>
+                  <div className="flex justify-between py-2 border-b border-gray-100">
+                    <span className="text-gray-600">Setup & Cleanup</span>
+                    <span className="font-medium">2 hours</span>
+                  </div>
+                  <div className="flex justify-between py-2 border-b border-gray-200 font-medium">
+                    <span className="text-gray-700">Total Labor Cost</span>
+                    <span className="text-blue-600">${enhancedBreakdown.labor.toLocaleString()}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Fees and Final Total */}
+              <div className="space-y-3 border-t border-gray-200 pt-4">
+                <div className="flex justify-between py-2">
+                  <span className="text-gray-600">Platform Fee (5%)</span>
+                  <span className="font-medium">${enhancedBreakdown.platformFee.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between py-2 border-b border-gray-200">
+                  <span className="text-gray-600">GST (5%)</span>
+                  <span className="font-medium">${enhancedBreakdown.gst.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between items-center pt-2">
+                  <span className="text-xl font-bold text-gray-900">Final Total</span>
                   <span className="text-2xl font-bold text-green-600">
-                    ${estimate.total.toLocaleString()}
+                    ${enhancedBreakdown.finalTotal.toLocaleString()}
                   </span>
                 </div>
               </div>
@@ -227,11 +284,48 @@ const EstimateDisplay = () => {
                 </div>
               </div>
 
-              {/* Form Data Summary */}
+              {/* Form Data Summary - FIXED IMAGES DISPLAY */}
               <div className="mt-6 pt-6 border-t border-gray-200">
                 <h3 className="text-lg font-medium text-gray-900 mb-3">Specifications</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                   {Object.entries(projectData.formData).map(([key, value]) => {
+                    // Handle images separately
+                    if (key.toLowerCase().includes('image') || key.toLowerCase().includes('photo')) {
+                      if (Array.isArray(value) && value.length > 0) {
+                        return (
+                          <div key={key} className="col-span-full">
+                            <span className="font-medium capitalize block mb-2">
+                              {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}:
+                            </span>
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                              {value.map((file, index) => (
+                                <div key={index} className="relative">
+                                  {file instanceof File ? (
+                                    <img
+                                      src={URL.createObjectURL(file)}
+                                      alt={`Project image ${index + 1}`}
+                                      className="w-full h-20 object-cover rounded border"
+                                    />
+                                  ) : typeof file === 'string' ? (
+                                    <img
+                                      src={file}
+                                      alt={`Project image ${index + 1}`}
+                                      className="w-full h-20 object-cover rounded border"
+                                    />
+                                  ) : (
+                                    <div className="w-full h-20 bg-gray-200 rounded border flex items-center justify-center text-xs text-gray-500">
+                                      Image {index + 1}
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )
+                      }
+                      return null
+                    }
+                    
                     if (typeof value === 'boolean') {
                       return value ? (
                         <div key={key} className="flex items-center">
@@ -269,13 +363,18 @@ const EstimateDisplay = () => {
             </div>
           </div>
 
-          {/* Right Column - Contractor Selection */}
+          {/* Right Column - Contractor Selection - FIXED SELECT BUTTON */}
           <div className="space-y-6">
             <div className="bg-white rounded-lg shadow-md p-6">
               <h2 className="text-xl font-semibold text-gray-900 mb-4">Available Contractors</h2>
               <div className="space-y-4">
                 {availableContractors.map((contractor) => {
-                  const technicianPayout = calculateTechnicianPayout(estimate.total, contractor.commissionRate)
+                  // FIXED: Proper technician payout calculation
+                  const technicianPayoutData = calculateTechnicianPayout 
+                    ? calculateTechnicianPayout(enhancedBreakdown.finalTotal, contractor.commissionRate)
+                    : { technicianPayout: Math.round(enhancedBreakdown.finalTotal * (contractor.commissionRate / 100)) }
+                  
+                  const technicianPayout = technicianPayoutData.technicianPayout || technicianPayoutData
                   
                   return (
                     <div key={contractor.id} className="border border-gray-200 rounded-lg p-4 hover:border-blue-300 transition-colors">
@@ -340,7 +439,8 @@ const EstimateDisplay = () => {
                         </div>
                         <button
                           onClick={() => handleContractorSelect(contractor)}
-                          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium"
+                          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium transition-colors cursor-pointer"
+                          type="button"
                         >
                           Select
                         </button>
