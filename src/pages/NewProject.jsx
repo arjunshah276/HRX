@@ -496,7 +496,7 @@ const NewProject = () => {
                   <div className="bg-gray-50 rounded-lg p-6">
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">Cost Breakdown</h3>
                     <div className="space-y-2">
-                      {Object.entries(estimate.breakdown).map(([key, value]) => (
+                      {Object.entries(estimate?.breakdown || {}).map(([key, value]) => (
                         <div key={key} className="flex justify-between text-sm">
                           <span className="capitalize text-gray-600">
                             {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
