@@ -67,10 +67,10 @@ const formData = projectData?.form_data || projectData?.formData || {}
 
   const template = templates[projectData.templateId]
   const baseEstimate = calculateProjectEstimate(
-    projectData.templateId, 
-    projectData.formData,
-    user?.id
-  )
+  projectData.template_id || projectData.templateId, 
+  formData,  // Use our safe formData
+  user?.id
+)
 
   // Calculate pricing for each contractor
   const contractorPricing = mockContractors.reduce((acc, contractor) => {
