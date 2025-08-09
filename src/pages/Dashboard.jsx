@@ -14,9 +14,8 @@ import {
   Wrench,
   Home
 } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { fetchProjectsForUser } from '../lib/supabaseClient'
-import { useAuth } from '../App'
 const Dashboard = () => {
   const { user } = useAuth()
   const [activeTab, setActiveTab] = useState('overview')
@@ -73,8 +72,6 @@ const Dashboard = () => {
     </div>
   )
 }
-
-export default ProjectsTab
 
   const mockStats = {
     customer: {
