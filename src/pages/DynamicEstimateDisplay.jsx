@@ -420,6 +420,7 @@ const formData = projectData?.form_data || projectData?.formData || {}
                     return null
                   })}
                 </div>
+                </div>
               </div>
               </div>
 
