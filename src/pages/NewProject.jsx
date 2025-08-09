@@ -107,7 +107,7 @@ const NewProject = () => {
     // Try to log to Supabase (best-effort)
     if (import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY) {
       try {
-        await insertActivity({
+        async insertActivity => ({
           user_id: user?.id || null,
           session_id: sessionStorage.getItem('sessionId') || null,
           action: 'ESTIMATE_CALCULATED',
