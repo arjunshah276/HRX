@@ -65,7 +65,22 @@ const formData = projectData?.form_data || projectData?.formData || {}
     )
   }
 
-  const template = templates[projectData.templateId]
+  const template = templates[projectData.template_id || projectData.templateId]
+
+// Add safety check
+if (!template) {
+  return (
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="text-center">
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">Template Not Found</h2>
+        <p className="text-gray-600 mb-4">Template "{projectData.template_id || projectData.templateId}" could not be loaded.</p>
+        <Link to="/dashboard" className="text-blue-600 hover:text-blue-800">
+          Return to Dashboard
+        </Link>
+      </div>
+    </div>
+  )
+}
   const baseEstimate = calculateProjectEstimate(
   projectData.template_id || projectData.templateId, 
   formData,  // Use our safe formData
