@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../App'
 import { 
@@ -14,22 +14,20 @@ import {
   Wrench,
   Home
 } from 'lucide-react'
-import { useEffect } from 'react'
 import { fetchProjectsForUser } from '../lib/supabaseClient'
+
 const Dashboard = () => {
   const { user } = useAuth()
   const [activeTab, setActiveTab] = useState('overview')
-
-  // Mock data - replace with real data from backend
-  const mockProjects = function ProjectsTab() {
-  const { user } = useAuth()
   const [projects, setProjects] = useState([])
   const [loading, setLoading] = useState(true)
 
+  // Load projects data
   useEffect(() => {
-    const load = async () => {
+    const loadProjects = async () => {
       setLoading(true)
       let data = []
+      
       if (import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY) {
         try {
           data = await fetchProjectsForUser(user?.id || null)
@@ -47,39 +45,63 @@ const Dashboard = () => {
       setProjects(data || [])
       setLoading(false)
     }
-    load()
+    
+    loadProjects()
   }, [user])
 
-  if (loading) return <div>Loading projects...</div>
-  if (!projects.length) return <div>No projects yet</div>
+  // Mock projects for display (fallback if no real projects)
+  const mockProjects = [
+    {
+      id: 1,
+      title: 'Kitchen Renovation',
+      contractor: 'Smith Construction',
+      date: '2024-03-15',
+      cost: '12,500',
+      status: 'in-progress',
+      progress: 65,
+      rating: null
+    },
+    {
+      id: 2,
+      title: 'Bathroom Remodel',
+      contractor: 'Quality Home Services',
+      date: '2024-02-28',
+      cost: '8,200',
+      status: 'completed',
+      progress: 100,
+      rating: 5
+    },
+    {
+      id: 3,
+      title: 'Deck Installation',
+      contractor: 'Outdoor Living Pro',
+      date: '2024-04-01',
+      cost: '6,800',
+      status: 'pending',
+      progress: 0,
+      rating: null
+    }
+  ]
 
-  return (
-    <div>
-      {projects.map(p => (
-        <div key={p.id} className="p-3 border rounded mb-2">
-          <div className="flex justify-between">
-            <div>
-              <div className="font-semibold">{p.template_id}</div>
-              <div className="text-sm text-gray-600">{new Date(p.created_at).toLocaleString()}</div>
-            </div>
-            <div className="text-right">
-              <div className="font-bold">${Math.round(p.estimate?.total || p.estimate?.subtotal || 0).toLocaleString()}</div>
-              <div className="text-xs text-gray-500">{p.status}</div>
-            </div>
-          </div>
-        </div>
-      ))}
-    </div>
-  )
-}
+  // Use real projects if available, otherwise use mock data
+  const displayProjects = projects.length > 0 ? projects.map(p => ({
+    id: p.id,
+    title: p.template_id || p.title || 'Project',
+    contractor: p.contractor || 'TBD',
+    date: p.created_at || new Date().toISOString(),
+    cost: Math.round(p.estimate?.total || p.estimate?.subtotal || 0).toLocaleString(),
+    status: p.status || 'pending',
+    progress: p.progress || 0,
+    rating: p.rating || null
+  })) : mockProjects
 
   const mockStats = {
     customer: {
-      totalProjects: 12,
-      completedProjects: 8,
-      totalSpent: 8450,
+      totalProjects: displayProjects.length,
+      completedProjects: displayProjects.filter(p => p.status === 'completed').length,
+      totalSpent: displayProjects.reduce((sum, p) => sum + (parseInt(p.cost.replace(',', '')) || 0), 0),
       averageRating: 4.8,
-      activeProjects: 2
+      activeProjects: displayProjects.filter(p => p.status === 'in-progress').length
     },
     technician: {
       totalJobs: 45,
@@ -155,7 +177,7 @@ const Dashboard = () => {
             <span className="text-gray-600">Cost:</span>
             <span className="font-semibold text-green-600">${project.cost}</span>
           </div>
-          {project.progress && (
+          {project.progress > 0 && (
             <div>
               <div className="flex justify-between text-xs text-gray-600 mb-1">
                 <span>Progress</span>
@@ -183,6 +205,49 @@ const Dashboard = () => {
       </div>
     </div>
   )
+
+  // Projects Tab Component
+  const ProjectsTab = () => {
+    if (loading) return <div className="text-center py-8">Loading projects...</div>
+    
+    return (
+      <div className="space-y-6">
+        {/* Filter Buttons */}
+        <div className="flex flex-wrap gap-2">
+          {['all', 'pending', 'in-progress', 'completed'].map((status) => (
+            <button
+              key={status}
+              className="px-4 py-2 rounded-full text-sm font-medium bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              {status === 'all' ? 'All' : status.charAt(0).toUpperCase() + status.slice(1).replace('-', ' ')}
+            </button>
+          ))}
+        </div>
+
+        {/* Projects Grid */}
+        {displayProjects.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {displayProjects.map((project) => (
+              <ProjectCard key={project.id} project={project} />
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
+            <Home className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No projects yet</h3>
+            <p className="text-gray-600 mb-4">Start your first home renovation project!</p>
+            <Link
+              to="/new-project"
+              className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              <Plus className="w-5 h-5 mr-2" />
+              Create Project
+            </Link>
+          </div>
+        )}
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -307,18 +372,28 @@ const Dashboard = () => {
                 <h2 className="text-xl font-semibold text-gray-900">
                   Recent {user?.type === 'customer' ? 'Projects' : 'Jobs'}
                 </h2>
-                <Link 
-                  to="#" 
+                <button 
+                  onClick={() => setActiveTab('projects')}
                   className="text-blue-600 hover:text-blue-800 text-sm font-medium"
                 >
                   View all →
-                </Link>
+                </button>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {mockProjects.slice(0, 3).map((project) => (
-                  <ProjectCard key={project.id} project={project} />
-                ))}
-              </div>
+              {loading ? (
+                <div className="text-center py-8">Loading projects...</div>
+              ) : displayProjects.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {displayProjects.slice(0, 3).map((project) => (
+                    <ProjectCard key={project.id} project={project} />
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
+                  <Home className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No projects yet</h3>
+                  <p className="text-gray-600">Start your first home renovation project!</p>
+                </div>
+              )}
             </div>
 
             {/* Quick Actions */}
@@ -392,28 +467,7 @@ const Dashboard = () => {
           </div>
         )}
 
-        {activeTab === 'projects' && (
-          <div className="space-y-6">
-            {/* Filter Buttons */}
-            <div className="flex flex-wrap gap-2">
-              {['all', 'pending', 'in-progress', 'completed'].map((status) => (
-                <button
-                  key={status}
-                  className="px-4 py-2 rounded-full text-sm font-medium bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
-                >
-                  {status === 'all' ? 'All' : status.charAt(0).toUpperCase() + status.slice(1).replace('-', ' ')}
-                </button>
-              ))}
-            </div>
-
-            {/* Projects Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {mockProjects.map((project) => (
-                <ProjectCard key={project.id} project={project} />
-              ))}
-            </div>
-          </div>
-        )}
+        {activeTab === 'projects' && <ProjectsTab />}
 
         {activeTab === 'analytics' && (
           <div className="space-y-6">
