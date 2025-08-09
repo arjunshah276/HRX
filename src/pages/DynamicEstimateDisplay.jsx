@@ -47,7 +47,9 @@ const DynamicEstimateDisplay = () => {
 
   // Get project data
   const projectData = location.state?.projectData || 
-    JSON.parse(localStorage.getItem('projects') || '[]').find(p => p.id === projectId)
+  JSON.parse(localStorage.getItem('projects') || '[]').find(p => p.id === projectId)
+
+const formData = projectData?.form_data || projectData?.formData || {}
 
   if (!projectData) {
     return (
