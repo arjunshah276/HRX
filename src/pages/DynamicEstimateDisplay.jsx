@@ -348,79 +348,79 @@ const formData = projectData?.form_data || projectData?.formData || {}
                             <span className="font-medium capitalize block mb-2">
                               {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}:
                             </span>
-                          <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                            {value.map((file, index) => (
-                              <div key={index} className="relative">
-                                {file instanceof File ? (
-                                  <img
-                                    src={URL.createObjectURL(file)}
-                                    alt={`Project image ${index + 1}`}
-                                    className="w-full h-20 object-cover rounded border"
-                                  />
-                                ) : typeof file === 'string' ? (
-                                  <img
-                                    src={file}
-                                    alt={`Project image ${index + 1}`}
-                                    className="w-full h-20 object-cover rounded border"
-                                  />
-                                ) : (
-                                  <div className="w-full h-20 bg-gray-200 rounded border flex items-center justify-center text-xs text-gray-500">
-                                    Image {index + 1}
-                                  </div>
-                                )}
-                              </div>
-                            ))}
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                              {value.map((file, index) => (
+                                <div key={index} className="relative">
+                                  {file instanceof File ? (
+                                    <img
+                                      src={URL.createObjectURL(file)}
+                                      alt={`Project image ${index + 1}`}
+                                      className="w-full h-20 object-cover rounded border"
+                                    />
+                                  ) : typeof file === 'string' ? (
+                                    <img
+                                      src={file}
+                                      alt={`Project image ${index + 1}`}
+                                      className="w-full h-20 object-cover rounded border"
+                                    />
+                                  ) : (
+                                    <div className="w-full h-20 bg-gray-200 rounded border flex items-center justify-center text-xs text-gray-500">
+                                      Image {index + 1}
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
                           </div>
+                        )
+                      }
+                      return null
+                    }
+                    
+                    if (typeof value === 'boolean') {
+                      return value ? (
+                        <div key={key} className="flex items-center">
+                          <CheckCircle className="w-4 h-4 text-green-500 mr-2" />
+                          <span className="capitalize">
+                            {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
+                          </span>
+                        </div>
+                      ) : null
+                    }
+                    if (Array.isArray(value) && value.length > 0) {
+                      return (
+                        <div key={key}>
+                          <span className="font-medium capitalize">
+                            {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}:
+                          </span>
+                          <span className="ml-2">{value.join(', ')}</span>
+                        </div>
+                      )
+                    }
+                    if (typeof value === 'string' && value.length > 0) {
+                      return (
+                        <div key={key}>
+                          <span className="font-medium capitalize">
+                            {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}:
+                          </span>
+                          <span className="ml-2">{value}</span>
+                        </div>
+                      )
+                    }
+                    if (typeof value === 'number' && !isNaN(value)) {
+                      return (
+                        <div key={key}>
+                          <span className="font-medium capitalize">
+                            {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}:
+                          </span>
+                          <span className="ml-2">{value}</span>
                         </div>
                       )
                     }
                     return null
-                  }
-                  
-                  if (typeof value === 'boolean') {
-                    return value ? (
-                      <div key={key} className="flex items-center">
-                        <CheckCircle className="w-4 h-4 text-green-500 mr-2" />
-                        <span className="capitalize">
-                          {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
-                        </span>
-                      </div>
-                    ) : null
-                  }
-                  if (Array.isArray(value) && value.length > 0) {
-                    return (
-                      <div key={key}>
-                        <span className="font-medium capitalize">
-                          {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}:
-                        </span>
-                        <span className="ml-2">{value.join(', ')}</span>
-                      </div>
-                    )
-                  }
-                  if (typeof value === 'string' && value.length > 0) {
-                    return (
-                      <div key={key}>
-                        <span className="font-medium capitalize">
-                          {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}:
-                        </span>
-                        <span className="ml-2">{value}</span>
-                      </div>
-                    )
-                  }
-                  if (typeof value === 'number' && !isNaN(value)) {
-                    return (
-                      <div key={key}>
-                        <span className="font-medium capitalize">
-                          {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}:
-                        </span>
-                        <span className="ml-2">{value}</span>
-                      </div>
-                    )
-                  }
-                  return null
-                })}
-              </div>
-          </div>
+                  })}
+                </div>
+               </div>
 
           {/* Right Column - Contractor Selection */}
           <div className="space-y-6">
