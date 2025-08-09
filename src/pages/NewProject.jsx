@@ -151,7 +151,7 @@ const NewProject = () => {
   let savedProject = null
   if (import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY) {
     try {
-      savedProject = async insertProject(projectData)
+      savedProject = async insertProject => (projectData)
     } catch (err) {
       console.warn('Supabase insert failed, falling back to localStorage', err)
     }
