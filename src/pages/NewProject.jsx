@@ -169,7 +169,7 @@ const NewProject = () => {
   // Optionally, log project create activity
   try {
     if (import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY) {
-      await insertActivity({
+      async insertActivity => ({
         user_id: user?.id || null,
         session_id: sessionStorage.getItem('sessionId') || null,
         action: 'PROJECT_CREATED',
